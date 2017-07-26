@@ -1,720 +1,800 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
 /**
  * Developer: Alex Voronyansky <belirafon@gmail.com>
  * Date: 27.04.2016
  * Time: 15:37
  */
-
-"use strict";
-
-const amiUtils = require('asterisk-ami-event-utils');
-const AmiTestServer = require('asterisk-ami-test-server');
-const AmiClient = require('../lib/AmiClient');
-const AmiConnection = require('../node_modules/asterisk-ami-connector/lib/AmiConnection');
-const assert = require('assert');
-
-const USERNAME = 'test';
-const SECRET = 'test';
-
-let serverOptions = {
-        silent: true,
-        credentials: {
-            username: USERNAME,
-            secret: SECRET
-        }
+const assert = require("assert");
+const debug_1 = require("debug");
+const AmiConnection_1 = require("local-asterisk-ami-connector/lib/AmiConnection");
+const local_asterisk_ami_event_utils_1 = require("local-asterisk-ami-event-utils");
+const local_asterisk_ami_test_server_1 = require("local-asterisk-ami-test-server");
+const AmiClient_1 = require("../lib/AmiClient");
+const debugLog = debug_1.default("AmiClientTest");
+const USERNAME = "test";
+const SECRET = "test";
+process.on("unhandledRejection", (reason, p) => {
+    debugLog("Unhandled Rejection at: Promise", p, "reason:", reason);
+    // application specific logging, throwing an error, or other logic here
+});
+const serverOptions = {
+    credentials: {
+        secret: SECRET,
+        username: USERNAME
     },
-    socketOptions = {
-        host: '127.0.0.1',
-        port: 5038
-    };
-
-describe('Ami Client internal functionality', function(){
-    this.timeout(3000);
-    
-    let server = null,
-        client = null;
-
-    afterEach(done => {
-        if(server instanceof AmiTestServer){
+    silent: true
+};
+const socketOptions = {
+    host: "127.0.0.1",
+    port: 5038
+};
+describe("Ami Client internal functionality", () => {
+    let server = null;
+    let client = null;
+    afterEach((done) => {
+        if (server instanceof local_asterisk_ami_test_server_1.default) {
             server.close();
             server.removeAllListeners();
             server = null;
         }
-        if(client instanceof AmiClient){
+        if (client instanceof AmiClient_1.default) {
             client.disconnect();
             client = null;
         }
         setTimeout(done, 100);
     });
-
-    describe('Regular connection with default configuration', function(){
-
-        beforeEach(done => {
-            client = new AmiClient();
-            server = new AmiTestServer(serverOptions);
-            server.listen(socketOptions).then(done);
-        });
-
-        it('Connect with correct credentials', done => {
-            client.connect(USERNAME, SECRET, socketOptions).then(() => done());
-        });
-
-        it('Connector returns instance of AmiConnection', done => {
-            client.connect(USERNAME, SECRET, socketOptions).then(amiConnection => {
-                assert.ok(amiConnection instanceof AmiConnection);
-                done();
+    describe("Regular connection with default configuration", () => {
+        beforeEach((done) => {
+            client = new AmiClient_1.default();
+            server = new local_asterisk_ami_test_server_1.default(serverOptions);
+            server.listen(socketOptions)
+                .then(() => done())
+                .catch((err) => {
+                done(err);
             });
         });
-
-        it('Connect with invalid credentials', done => {
-            client.connect('username', 'secret', socketOptions)
-                .catch(error => {
-                    assert.ok(error instanceof Error);
-                    assert.equal('ami message: authentication failed', error.message.toLowerCase());
-                    done();
-                });
+        it("Connect with correct credentials", (done) => {
+            client.connect(USERNAME, SECRET, socketOptions)
+                .then(() => done())
+                .catch((err) => {
+                done(err);
+            });
+        });
+        it("Connector returns instance of AmiConnection", (done) => {
+            client.connect(USERNAME, SECRET, socketOptions)
+                .then((amiConnection) => {
+                assert.ok(amiConnection instanceof AmiConnection_1.default);
+                done();
+            })
+                .catch((err) => {
+                done(err);
+            });
+        });
+        it("Connect with invalid credentials", (done) => {
+            client.connect("username", "secret", socketOptions)
+                .catch((error) => {
+                assert.ok(error instanceof Error);
+                assert.equal("ami message: authentication failed", error.message.toLowerCase());
+                done();
+            });
         });
     });
-
-    describe('Reconnection functioanlity', function(){
-
+    describe("Reconnection functionality", () => {
         beforeEach(() => {
-            server = new AmiTestServer(serverOptions);
+            server = new local_asterisk_ami_test_server_1.default(serverOptions);
         });
-
-        it('Reconnection with correct credentials', done => {
-            client = new AmiClient({
+        it("Reconnection with correct credentials", (done) => {
+            client = new AmiClient_1.default({
                 reconnect: true
             });
-            client.connect(USERNAME, SECRET, socketOptions).then(() => done());
+            client.connect(USERNAME, SECRET, socketOptions)
+                .then(() => {
+                done();
+            })
+                .catch((err) => {
+                done(err);
+            });
             setTimeout(() => {
                 server.listen(socketOptions);
             }, 1500);
-        });
-
-        it('Reconnection with invalid credentials', done => {
-            client = new AmiClient({
+        }).timeout(3000);
+        it("Reconnection with invalid credentials", (done) => {
+            client = new AmiClient_1.default({
                 reconnect: true
             });
-            client.connect('username', 'secret', socketOptions).catch(error => {
+            client.connect("username", "secret", socketOptions).catch((error) => {
                 assert.ok(error instanceof Error);
-                assert.equal('ami message: authentication failed', error.message.toLowerCase());
+                assert.equal("ami message: authentication failed", error.message.toLowerCase());
+                done();
+            });
+            setTimeout(() => {
+                server.listen(socketOptions);
+            }, 1000);
+        });
+        it("Limit of attempts of reconnection", (done) => {
+            client = new AmiClient_1.default({
+                maxAttemptsCount: 1,
+                reconnect: true
+            });
+            client.connect(USERNAME, SECRET, socketOptions).catch((error) => {
+                assert.ok(error instanceof Error);
+                assert.equal("reconnection error after max count attempts.", error.message.toLowerCase());
                 done();
             });
             setTimeout(() => {
                 server.listen(socketOptions);
             }, 1500);
         });
-
-        it('Limit of attempts of reconnection', done => {
-            client = new AmiClient({
-                reconnect: true,
-                maxAttemptsCount: 1
-            });
-            client.connect(USERNAME, SECRET, socketOptions).catch(error => {
-                assert.ok(error instanceof Error);
-                assert.equal('reconnection error after max count attempts.', error.message.toLowerCase());
-                done();
-            });
-            setTimeout(() => {
-                server.listen(socketOptions);
-            }, 1500);
-        });
-
-        it('Ban for reconnection', done => {
-            client = new AmiClient({
+        it("Ban for reconnection", (done) => {
+            client = new AmiClient_1.default({
                 reconnect: false
             });
-            client.connect(USERNAME, SECRET, socketOptions).catch(error => {
+            client.connect(USERNAME, SECRET, socketOptions).catch((error) => {
                 assert.ok(error instanceof Error);
-                assert.equal('connect ECONNREFUSED 127.0.0.1:5038', error.message);
+                assert.equal("connect ECONNREFUSED 127.0.0.1:5038", error.message);
                 done();
             });
         });
-
-        it('Reconnection after disconnect from Asterisk', done => {
-            let wasDisconnect = false,
-                connectCounter = 0;
-
-            client = new AmiClient({
-                reconnect: true,
+        it("Reconnection after disconnect from Asterisk", (done) => {
+            let wasDisconnect = false;
+            let connectCounter = 0;
+            client = new AmiClient_1.default({
+                attemptsDelay: 1000,
                 maxAttemptsCount: null,
-                attemptsDelay: 1000
+                reconnect: true
             });
             client
-                .on('disconnect', () => {
-                    wasDisconnect = true;
-                })
-                .on('connect', () => {
-                    if(++connectCounter == 2 && wasDisconnect){
-                        done();
-                    }
-                });
-
-            server.listen(socketOptions).then(() => {
-                client.connect(USERNAME, SECRET, socketOptions).then(() => {
+                .on("disconnect", () => {
+                wasDisconnect = true;
+            })
+                .on("connect", () => {
+                if (++connectCounter === 2 && wasDisconnect) {
+                    done();
+                }
+            });
+            server.listen(socketOptions)
+                .then(() => {
+                client.connect(USERNAME, SECRET, socketOptions)
+                    .then(() => {
                     server.close();
                     setTimeout(() => {
                         server.listen(socketOptions);
                     }, 1000);
+                })
+                    .catch((err) => {
+                    done(err);
                 });
+            })
+                .catch((err) => {
+                done(err);
             });
         });
     });
-
-    describe('Last event/response/action', function(){
-
-        beforeEach(done => {
-            client = new AmiClient();
-            server = new AmiTestServer(serverOptions);
-            server.listen(socketOptions).then(done);
+    describe("Last event/response/action", () => {
+        beforeEach((done) => {
+            client = new AmiClient_1.default();
+            server = new local_asterisk_ami_test_server_1.default(serverOptions);
+            server.listen(socketOptions)
+                .then(() => done())
+                .catch((err) => {
+                done(err);
+            });
         });
-
-        it('Get last Event after event', done => {
-            let testEvent = {
-                Event: 'TestEvent',
-                Value: 'TestValue'
+        it("Get last Event after event", (done) => {
+            const testEvent = {
+                Event: "TestEvent",
+                Value: "TestValue"
             };
-            client.connect(USERNAME, SECRET, {port: socketOptions.port}).then(() => {
-                server.broadcast(amiUtils.fromObject(testEvent));
-                client.once('event', event => {
+            client.connect(USERNAME, SECRET, { port: socketOptions.port })
+                .then(() => {
+                server.broadcast(local_asterisk_ami_event_utils_1.default.fromObject(testEvent));
+                client.once("event", (event) => {
                     assert.deepEqual(event, client.lastEvent);
                     done();
                 });
+            })
+                .catch((err) => {
+                done(err);
             });
         });
-
-        it('Get last Event before event', done => {
-            client.connect(USERNAME, SECRET, {port: socketOptions.port}).then(() => {
+        it("Get last Event before event", (done) => {
+            client.connect(USERNAME, SECRET, { port: socketOptions.port })
+                .then(() => {
                 assert.equal(null, client.lastEvent);
                 done();
+            })
+                .catch((err) => {
+                done(err);
             });
         });
-
-        it('Get last Response after action', done => {
-            client.connect(USERNAME, SECRET, {port: socketOptions.port}).then(() => {
-                client.action({Action: 'Ping'});
-                client.once('response', response => {
-                    assert.equal(response.Response, 'Success');
-                    assert.equal(response.Ping, 'Pong');
+        it("Get last Response after action", (done) => {
+            client.connect(USERNAME, SECRET, { port: socketOptions.port })
+                .then(() => {
+                client.action({ Action: "Ping" });
+                client.once("response", (response) => {
+                    assert.equal(response.Response, "Success");
+                    assert.equal(response.Ping, "Pong");
                     done();
                 });
+            })
+                .catch((err) => {
+                done(err);
             });
         });
-
-        it('Get last Response before action', done => {
-            client.connect(USERNAME, SECRET, {port: socketOptions.port}).then(() => {
+        it("Get last Response before action", (done) => {
+            client.connect(USERNAME, SECRET, { port: socketOptions.port })
+                .then(() => {
                 assert.equal(null, client.lastResponse);
                 done();
+            })
+                .catch((err) => {
+                done(err);
             });
         });
-
-        it('Get last Action after action (without ActionID)', done => {
-            client.connect(USERNAME, SECRET, {port: socketOptions.port}).then(() => {
-                let testAction = {Action: 'Ping'};
+        it("Get last Action after action (without ActionID)", (done) => {
+            client.connect(USERNAME, SECRET, { port: socketOptions.port })
+                .then(() => {
+                const testAction = { Action: "Ping" };
                 client.action(testAction);
                 assert.deepEqual(testAction, client.lastAction);
                 done();
             });
         });
-
-        it('Get last Action after action (with ActionID)', done => {
-            client.connect(USERNAME, SECRET, {port: socketOptions.port}).then(() => {
-                let testAction = {
-                    Action: 'Ping',
-                    ActionID: '1234567'
+        it("Get last Action after action (with ActionID)", (done) => {
+            client.connect(USERNAME, SECRET, { port: socketOptions.port })
+                .then(() => {
+                const testAction = {
+                    Action: "Ping",
+                    ActionID: "1234567"
                 };
                 client.action(testAction);
                 assert.deepEqual(testAction, client.lastAction);
                 done();
+            })
+                .catch((err) => {
+                done(err);
             });
         });
-
-        it('Get last Action before action', done => {
-            client.connect(USERNAME, SECRET, {port: socketOptions.port}).then(() => {
+        it("Get last Action before action", (done) => {
+            client.connect(USERNAME, SECRET, { port: socketOptions.port })
+                .then(() => {
                 assert.equal(null, client.lastAction);
                 done();
+            })
+                .catch((err) => {
+                done(err);
             });
         });
-
     });
-
-    describe('Client\'s events', function(){
-
-        beforeEach(done => {
-            client = new AmiClient({});
-            server = new AmiTestServer(serverOptions);
-            server.listen(socketOptions).then(done);
+    describe("Client's events", () => {
+        beforeEach((done) => {
+            client = new AmiClient_1.default({});
+            server = new local_asterisk_ami_test_server_1.default(serverOptions);
+            server.listen(socketOptions)
+                .then(() => done())
+                .catch((err) => {
+                done(err);
+            });
         });
-
-        it('Connect event', done => {
-            client.on('connect', () => done());
-            client.connect(USERNAME, SECRET, {port: socketOptions.port});
+        it("Connect event", (done) => {
+            client.on("connect", () => done());
+            client.connect(USERNAME, SECRET, { port: socketOptions.port });
         });
-
-        it('Disconnect event', done => {
-            client.once('disconnect', done);
-            client.connect(USERNAME, SECRET, {port: socketOptions.port}).then(() => {
+        it("Disconnect event", (done) => {
+            client.once("disconnect", done);
+            client.connect(USERNAME, SECRET, { port: socketOptions.port })
+                .then(() => {
                 setTimeout(server.close.bind(server), 100);
+            })
+                .catch((err) => {
+                done(err);
             });
         });
-
-        it('Reconnect event', done => {
-            client = new AmiClient({reconnect: true});
-            client.once('reconnection', () => done());
-            client.connect(USERNAME, SECRET, {port: socketOptions.port}).then(() => {
+        it("Reconnect event", (done) => {
+            client = new AmiClient_1.default({ reconnect: true });
+            client.once("reconnection", () => done());
+            client.connect(USERNAME, SECRET, { port: socketOptions.port })
+                .then(() => {
                 server.close();
+            })
+                .catch((err) => {
+                done(err);
             });
         });
-
-        it('Event event', done => {
-            let testEvent = {
-                Event: 'TestEvent'
+        it("Event event", (done) => {
+            const testEvent = {
+                Event: "TestEvent"
             };
-
-            client.on('event', event => {
+            client.on("event", (event) => {
                 assert.deepEqual(event, testEvent);
                 done();
             });
-
-            client.connect(USERNAME, SECRET, {port: socketOptions.port}).then(() => {
-                server.broadcast(amiUtils.fromObject(testEvent));
+            client.connect(USERNAME, SECRET, { port: socketOptions.port })
+                .then(() => {
+                server.broadcast(local_asterisk_ami_event_utils_1.default.fromObject(testEvent));
+            })
+                .catch((err) => {
+                done(err);
             });
         });
-
-        it('Event by event\'s type', done => {
-            let testEvent = {
-                Event: 'TestEvent'
+        it("Event by event's type", (done) => {
+            const testEvent = {
+                Event: "TestEvent"
             };
-
-            client.on('TestEvent', event => {
+            client.on("TestEvent", (event) => {
                 assert.deepEqual(event, testEvent);
                 done();
             });
-
-            client.connect(USERNAME, SECRET, {port: socketOptions.port}).then(() => {
-                server.broadcast(amiUtils.fromObject(testEvent));
+            client.connect(USERNAME, SECRET, { port: socketOptions.port })
+                .then(() => {
+                server.broadcast(local_asterisk_ami_event_utils_1.default.fromObject(testEvent));
+            })
+                .catch((err) => {
+                done(err);
             });
         });
-
-        it('Response event', done => {
-            client.on('response', response => {
-                assert(response.Response, 'Success');
-                assert(response.Ping, 'Pong');
+        it("Response event", (done) => {
+            client.on("response", (response) => {
+                assert(response.Response, "Success");
+                assert(response.Ping, "Pong");
                 done();
             });
-
-            client.connect(USERNAME, SECRET, {port: socketOptions.port}).then(() => {
-                client.action({Action: 'Ping'});
+            client.connect(USERNAME, SECRET, { port: socketOptions.port })
+                .then(() => {
+                client.action({ Action: "Ping" });
+            })
+                .catch((err) => {
+                done(err);
             });
         });
-
-        it('Response event by ActionID', done => {
-            client.on('resp_1234567', response => {
-                assert(response.Response, 'Success');
-                assert(response.Ping, 'Pong');
+        it("Response event by ActionID", (done) => {
+            client.on("resp_1234567", (response) => {
+                assert(response.Response, "Success");
+                assert(response.Ping, "Pong");
                 done();
             });
-
-            client.connect(USERNAME, SECRET, {port: socketOptions.port}).then(() => {
+            client.connect(USERNAME, SECRET, { port: socketOptions.port })
+                .then(() => {
                 client.action({
-                    Action: 'Ping',
-                    ActionID: '1234567'
+                    Action: "Ping",
+                    ActionID: "1234567"
                 });
+            })
+                .catch((err) => {
+                done(err);
             });
         });
-
-        it('Data event', done => {
-            let testChunk = amiUtils.fromString('test chunk');
-            client.once('data', chunk => {
+        it("Data event", (done) => {
+            const testChunk = local_asterisk_ami_event_utils_1.default.fromString("test chunk");
+            client.once("data", (chunk) => {
                 assert.equal(chunk.toString(), testChunk);
                 done();
             });
-
-            client.connect(USERNAME, SECRET, {port: socketOptions.port}).then(() => {
+            client.connect(USERNAME, SECRET, { port: socketOptions.port })
+                .then(() => {
                 server.broadcast(testChunk);
+            })
+                .catch((err) => {
+                done(err);
             });
         });
-
     });
-
-    describe('Action-method and aliases', function(){
-
-        beforeEach(done => {
-            client = new AmiClient({});
-            server = new AmiTestServer(serverOptions);
-            server.listen(socketOptions).then(done);
+    describe("Action-method and aliases", () => {
+        beforeEach((done) => {
+            client = new AmiClient_1.default({});
+            server = new local_asterisk_ami_test_server_1.default(serverOptions);
+            server.listen(socketOptions)
+                .then(() => done())
+                .catch((err) => {
+                done(err);
+            });
         });
-
-        it('Call action before connection => exception', () => {
+        it("Call action before connection => exception", () => {
             assert.throws(() => {
-                client.action({Action: 'Ping'});
-            }, error => {
+                client.action({ Action: "Ping" });
+            }, (error) => {
                 assert.ok(error instanceof Error);
                 assert.equal(`Call 'connect' method before.`, error.message);
                 return true;
             });
         });
-
-        it('Write is a alias of action', done => {
-            let action = client.action,
-                testAction = {Action: 'Ping'};
-
-            client.action = function(message){
+        it("Write is a alias of action", (done) => {
+            const originalAction = client.action;
+            const testAction = { Action: "Ping" };
+            client.action = (message, promisable) => {
+                client.action = originalAction;
                 assert.deepEqual(testAction, message);
                 done();
+                return;
             };
             client.write(testAction);
         });
-
-        it('Send is a alias of action', done => {
-            let action = client.action,
-                testAction = {Action: 'Ping'};
-
-            client.action = function(message){
+        it("Send is a alias of action", (done) => {
+            const originalAction = client.action;
+            const testAction = { Action: "Ping" };
+            client.action = (message, promisable) => {
+                client.action = originalAction;
                 assert.deepEqual(testAction, message);
                 done();
+                return;
             };
             client.send(testAction);
         });
-
-        it('Action is promissable', done => {
-            client.connect(USERNAME, SECRET, {port: socketOptions.port}).then(() => {
-                assert.ok(client.action({Action: 'Ping'}, true) instanceof Promise);
+        it("Action is promisable", (done) => {
+            client.connect(USERNAME, SECRET, { port: socketOptions.port })
+                .then(() => {
+                assert.ok(client.action({ Action: "Ping" }, true) instanceof Promise);
                 done();
+            })
+                .catch((err) => {
+                done(err);
             });
         });
-
-        it('Resolving promissabled action with ActionID', done => {
-            let action = {
-                Action: 'Ping',
-                ActionID: '1234567'
+        it("Resolving promisable action with ActionID", (done) => {
+            const action = {
+                Action: "Ping",
+                ActionID: "1234567"
             };
-
-            client.connect(USERNAME, SECRET, {port: socketOptions.port}).then(() => {
-                client.action(action, true).then( response => {
+            client.connect(USERNAME, SECRET, { port: socketOptions.port })
+                .then(() => {
+                client.action(action, true)
+                    .then((response) => {
                     delete response.Timestamp;
                     assert.deepEqual({
-                        Response: 'Success',
-                        Ping: 'Pong',
-                        ActionID: action.ActionID
+                        ActionID: action.ActionID,
+                        Ping: "Pong",
+                        Response: "Success"
                     }, response);
                     done();
+                })
+                    .catch((err) => {
+                    done(err);
                 });
+            })
+                .catch((err) => {
+                done(err);
             });
         });
-
-        it('Resolving promissabled action without ActionID', done => {
-            client.connect(USERNAME, SECRET, {port: socketOptions.port}).then(() => {
-                client.action({Action: 'Ping'}, true).then( response => {
+        it("Resolving promisable action without ActionID", (done) => {
+            client.connect(USERNAME, SECRET, { port: socketOptions.port })
+                .then(() => {
+                client.action({ Action: "Ping" }, true)
+                    .then((response) => {
                     delete response.Timestamp;
                     assert.deepEqual({
-                        Response: 'Success',
-                        Ping: 'Pong'
+                        Ping: "Pong",
+                        Response: "Success"
                     }, response);
                     done();
+                })
+                    .catch((err) => {
+                    done(err);
                 });
+            })
+                .catch((err) => {
+                done(err);
             });
         });
-
-        it('Last response not have $time field after resolving promissabled action without ActionID', done => {
-            client.connect(USERNAME, SECRET, {port: socketOptions.port}).then(() => {
-                client.action({Action: 'Ping'}, true).then(() => {
+        it("Last response not have $time field after resolving promisable action without ActionID", (done) => {
+            client.connect(USERNAME, SECRET, { port: socketOptions.port })
+                .then(() => {
+                client.action({ Action: "Ping" }, true)
+                    .then(() => {
                     assert.ok(client.lastResponse.$time === undefined);
                     done();
+                })
+                    .catch((err) => {
+                    done(err);
                 });
+            })
+                .catch((err) => {
+                done(err);
             });
         });
-
     });
-
-    describe('Client\'s configuration', function(){
-
-        beforeEach(done => {
-            client = new AmiClient({});
-            server = new AmiTestServer(serverOptions);
-            server.listen(socketOptions).then(done);
+    describe("Client's configuration", () => {
+        beforeEach((done) => {
+            client = new AmiClient_1.default({});
+            server = new local_asterisk_ami_test_server_1.default(serverOptions);
+            server.listen(socketOptions)
+                .then(() => done())
+                .catch((err) => {
+                done(err);
+            });
         });
-
-        it('Get all options of client', () => {
+        it("Get all options of client", () => {
             assert.deepEqual(client.options(), {
-                reconnect: false,
-                maxAttemptsCount: 30,
+                addTime: false,
                 attemptsDelay: 1000,
+                emitEventsByTypes: true,
+                emitResponsesById: true,
+                eventFilter: null,
+                eventTypeToLowerCase: false,
                 keepAlive: false,
                 keepAliveDelay: 1000,
-                emitEventsByTypes: true,
-                eventTypeToLowerCase: false,
-                emitResponsesById: true,
-                addTime: false,
-                eventFilter: null
-            })
+                maxAttemptsCount: 30,
+                reconnect: false
+            });
         });
-
-        it('Set all options of client', () => {
-            let newOptions = {
-                reconnect: true,
-                maxAttemptsCount: 5,
+        it("Set all options of client", () => {
+            const newOptions = {
+                addTime: true,
                 attemptsDelay: 5000,
+                emitEventsByTypes: false,
+                emitResponsesById: false,
+                eventFilter: new Set(["Dial"]),
+                eventTypeToLowerCase: true,
                 keepAlive: true,
                 keepAliveDelay: 5000,
-                emitEventsByTypes: false,
-                eventTypeToLowerCase: true,
-                emitResponsesById: false,
-                addTime: true,
-                eventFilter: new Set(['Dial'])
+                maxAttemptsCount: 5,
+                reconnect: true
             };
-
-            client.options(Object.assign({}, newOptions, {undefinedOption: 'testValue'}));
-            assert.deepEqual(client.options(), newOptions)
+            client.options(Object.assign({}, newOptions, { undefinedOption: "testValue" }));
+            assert.deepEqual(client.options(), newOptions);
         });
-
-        it('Get value of exists option', () => {
-            assert.equal(client.option('maxAttemptsCount'), 30)
+        it("Get value of exists option", () => {
+            assert.equal(client.option("maxAttemptsCount"), 30);
         });
-
-        it('Get value of not exists option', () => {
-            assert.equal(client.option('notExistsOption'), undefined)
+        it("Get value of not exists option", () => {
+            assert.equal(client.option("notExistsOption"), undefined);
         });
-
-        it('Set value for exists option', () => {
-            let optionName = 'maxAttemptsCount',
-                result = client.option(optionName, 1);
+        it("Set value for exists option", () => {
+            const optionName = "maxAttemptsCount";
+            const result = client.option(optionName, 1);
             assert.equal(client.option(optionName), 1);
             assert.equal(result, true);
         });
-
-        it('Set value for not exists option', () => {
-            let result = client.option('notExistsOption', 1);
+        it("Set value for not exists option", () => {
+            const result = client.option("notExistsOption", 1);
             assert.equal(result, false);
         });
-
-        it('Set event filter from array', () => {
-            let eventNames = ['Dial', 'Hangup', 'Dial'];
-            client.option('eventFilter', eventNames);
-            assert.ok(client.option('eventFilter') instanceof Set);
-            assert.deepEqual(
-                Array.from(client.option('eventFilter')),
-                Array.from(new Set(eventNames)).map(name => name.toLowerCase())
-            );
+        it("Set event filter from array", () => {
+            const eventNames = ["Dial", "Hangup", "Dial"];
+            client.option("eventFilter", eventNames);
+            assert.ok(client.option("eventFilter") instanceof Set);
+            assert.deepEqual(Array.from(client.option("eventFilter")), Array.from(new Set(eventNames)).map((name) => name.toLowerCase()));
         });
-
-        it('Set event filter from object', () => {
-            let eventNames = {
+        it("Set event filter from object", () => {
+            const eventNames = {
                 Dial: 1,
                 Hangup: 1
             };
-            client.option('eventFilter', eventNames);
-            assert.ok(client.option('eventFilter') instanceof Set);
-            assert.deepEqual(
-                Array.from(client.option('eventFilter')),
-                Object.keys(eventNames).map(name => name.toLowerCase())
-            );
+            client.option("eventFilter", eventNames);
+            assert.ok(client.option("eventFilter") instanceof Set);
+            assert.deepEqual(Array.from(client.option("eventFilter")), Object.keys(eventNames).map((name) => name.toLowerCase()));
         });
-
-        it('Set event filter from Set', () => {
-            let eventNames = new Set(['Dial', 'Hangup', 'Dial']);
-            client.option('eventFilter', eventNames);
-            assert.deepEqual(client.option('eventFilter'), eventNames);
+        it("Set event filter from Set", () => {
+            const eventNames = new Set(["Dial", "Hangup", "Dial"]);
+            client.option("eventFilter", eventNames);
+            assert.deepEqual(client.option("eventFilter"), eventNames);
         });
-
-        it('Event not have $time field', done => {
-           client.connect(USERNAME, SECRET, {port: socketOptions.port}).then(() => {
-               client.on('event', event => {
-                   assert.ok(event.$time === undefined);
-                   done();
-               });
-               server.broadcast(amiUtils.fromObject({Event: 'TestEvent'}));
-           });
-        });
-
-        it('Response not have $time field', done => {
-            client.connect(USERNAME, SECRET, {port: socketOptions.port}).then(() => {
-                client
-                    .on('response', response => {
-                        assert.ok(response.$time === undefined);
-                        done();
-                    })
-                    .action({Action: 'Ping'});
+        it("Event not have $time field", (done) => {
+            client.connect(USERNAME, SECRET, { port: socketOptions.port })
+                .then(() => {
+                client.on("event", (event) => {
+                    assert.ok(event.$time === undefined);
+                    done();
+                });
+                server.broadcast(local_asterisk_ami_event_utils_1.default.fromObject({ Event: "TestEvent" }));
+            })
+                .catch((err) => {
+                done(err);
             });
         });
-
-        it('Event has $time field', done => {
-            client = new AmiClient({addTime: true});
-            client.connect(USERNAME, SECRET, {port: socketOptions.port}).then(() => {
-                client.once('event', event => {
+        it("Response not have $time field", (done) => {
+            client.connect(USERNAME, SECRET, { port: socketOptions.port })
+                .then(() => {
+                client
+                    .on("response", (response) => {
+                    assert.ok(response.$time === undefined);
+                    done();
+                })
+                    .action({ Action: "Ping" });
+            })
+                .catch((err) => {
+                done(err);
+            });
+        });
+        it("Event has $time field", (done) => {
+            client = new AmiClient_1.default({ addTime: true });
+            client.connect(USERNAME, SECRET, { port: socketOptions.port })
+                .then(() => {
+                client.once("event", (event) => {
                     assert.ok(/^\d{13}$/.test(event.$time));
                     done();
                 });
-                server.broadcast(amiUtils.fromObject({Event: 'TestEvent'}));
+                server.broadcast(local_asterisk_ami_event_utils_1.default.fromObject({ Event: "TestEvent" }));
+            })
+                .catch((err) => {
+                done(err);
             });
         });
-
-        it('Response has $time field', done => {
-            client = new AmiClient({addTime: true});
-            client.connect(USERNAME, SECRET, {port: socketOptions.port}).then(() => {
-                client.once('response', response => {
+        it("Response has $time field", (done) => {
+            client = new AmiClient_1.default({ addTime: true });
+            client.connect(USERNAME, SECRET, { port: socketOptions.port })
+                .then(() => {
+                client.once("response", (response) => {
                     assert.ok(/^\d{13}$/.test(response.$time));
                     done();
                 })
-                .action({Action: 'Ping'});
+                    .action({ Action: "Ping" });
+            })
+                .catch((err) => {
+                done(err);
             });
         });
-
     });
-
-    describe('Connection state', function(){
-
-        beforeEach(done => {
-            client = new AmiClient({});
-            server = new AmiTestServer(serverOptions);
-            server.listen(socketOptions).then(done);
+    describe("Connection state", () => {
+        beforeEach((done) => {
+            client = new AmiClient_1.default({});
+            server = new local_asterisk_ami_test_server_1.default(serverOptions);
+            server.listen(socketOptions)
+                .then(() => done())
+                .catch((err) => {
+                done(err);
+            });
         });
-
         it('State of AmiConnection before connect is "disconnected"', () => {
             assert.equal(client.connection, null);
         });
-
-        it('State of AmiConnection after connect is "connected"', done => {
-            client.connect(USERNAME, SECRET, {port: socketOptions.port}).then(() => {
-                assert.ok(client.connection instanceof AmiConnection);
+        it('State of AmiConnection after connect is "connected"', (done) => {
+            client.connect(USERNAME, SECRET, { port: socketOptions.port })
+                .then(() => {
+                assert.ok(client.connection instanceof AmiConnection_1.default);
                 done();
+            })
+                .catch((err) => {
+                done(err);
             });
         });
-
         it('State of connection before connect is "disconnected"', () => {
             assert.ok(!client.isConnected);
         });
-
-        it('State of connection after connect is "connected"', done => {
-            client.connect(USERNAME, SECRET, {port: socketOptions.port}).then(() => {
+        it('State of connection after connect is "connected"', (done) => {
+            client.connect(USERNAME, SECRET, { port: socketOptions.port })
+                .then(() => {
                 assert.ok(client.isConnected);
                 done();
+            })
+                .catch((err) => {
+                done(err);
             });
         });
-
-        it('State of connection after disconnect is "disconnected"', done => {
-            client.connect(USERNAME, SECRET, {port: socketOptions.port}).then(() => {
+        it('State of connection after disconnect is "disconnected"', (done) => {
+            client.connect(USERNAME, SECRET, { port: socketOptions.port })
+                .then(() => {
                 server.close();
                 setTimeout(() => {
                     assert.ok(!client.isConnected);
                     done();
                 }, 100);
+            })
+                .catch((err) => {
+                done(err);
             });
         });
-
     });
-
-    describe('Event filtering', function(){
-
-        beforeEach(done => {
-            client = new AmiClient({});
-            server = new AmiTestServer(serverOptions);
-            server.listen(socketOptions).then(done);
-        });
-
-        it('Filter is disabled', done => {
-            let srcEvents = [
-                    {Event: 'Test1', Value: 'TestValue1'},
-                    {Event: 'Test2', Value: 'TestValue2'}
-                ],
-                controlEvents = [];
-
-            assert.equal(null, client.option('eventFilter'));
-            client.connect(USERNAME, SECRET, {port: socketOptions.port}).then(() => {
-                client
-                    .on('event', event => {
-                        controlEvents.push(event);
-                    })
-                    .on('response', () => {
-                        assert.deepEqual(controlEvents, [
-                            {Event: 'Test1', Value: 'TestValue1'},
-                            {Event: 'Test2', Value: 'TestValue2'}
-                        ]);
-                        done();
-                    });
-
-                srcEvents.forEach(event => {
-                    server.broadcast(amiUtils.fromObject(event));
-                });
-                server.broadcast(amiUtils.fromObject({
-                    Response: 'Success'
-                }));
+    describe("Event filtering", () => {
+        beforeEach((done) => {
+            client = new AmiClient_1.default({});
+            server = new local_asterisk_ami_test_server_1.default(serverOptions);
+            server.listen(socketOptions)
+                .then(() => done())
+                .catch((err) => {
+                done(err);
             });
         });
-
-        it('Filter is enabled', done => {
-            let srcEvents = [
-                    {Event: 'Test1', Value: 'TestValue1'},
-                    {Event: 'Test2', Value: 'TestValue2'}
-                ],
-                controlEvents = [];
-
-            client.option('eventFilter', ['Test1']);
-            client.connect(USERNAME, SECRET, {port: socketOptions.port}).then(() => {
+        it("Filter is disabled", (done) => {
+            const srcEvents = [
+                { Event: "Test1", Value: "TestValue1" },
+                { Event: "Test2", Value: "TestValue2" }
+            ];
+            const controlEvents = [];
+            assert.equal(null, client.option("eventFilter"));
+            client.connect(USERNAME, SECRET, { port: socketOptions.port })
+                .then(() => {
                 client
-                    .on('event', event => {
-                        controlEvents.push(event);
-                    })
-                    .on('response', () => {
-                        assert.deepEqual(controlEvents, [
-                            {Event: 'Test2', Value: 'TestValue2'}
-                        ]);
-                        done();
-                    });
-
-                srcEvents.forEach(event => {
-                    server.broadcast(amiUtils.fromObject(event));
+                    .on("event", (event) => {
+                    controlEvents.push(event);
+                })
+                    .on("response", () => {
+                    assert.deepEqual(controlEvents, [
+                        { Event: "Test1", Value: "TestValue1" },
+                        { Event: "Test2", Value: "TestValue2" }
+                    ]);
+                    done();
                 });
-                server.broadcast(amiUtils.fromObject({
-                    Response: 'Success'
+                srcEvents.forEach((event) => {
+                    server.broadcast(local_asterisk_ami_event_utils_1.default.fromObject(event));
+                });
+                server.broadcast(local_asterisk_ami_event_utils_1.default.fromObject({
+                    Response: "Success"
                 }));
+            })
+                .catch((err) => {
+                done(err);
             });
         });
-
+        it("Filter is enabled", (done) => {
+            const srcEvents = [
+                { Event: "Test1", Value: "TestValue1" },
+                { Event: "Test2", Value: "TestValue2" }
+            ];
+            const controlEvents = [];
+            client.option("eventFilter", ["Test1"]);
+            client.connect(USERNAME, SECRET, { port: socketOptions.port })
+                .then(() => {
+                client
+                    .on("event", (event) => {
+                    controlEvents.push(event);
+                })
+                    .on("response", () => {
+                    assert.deepEqual(controlEvents, [
+                        { Event: "Test2", Value: "TestValue2" }
+                    ]);
+                    done();
+                });
+                srcEvents.forEach((event) => {
+                    server.broadcast(local_asterisk_ami_event_utils_1.default.fromObject(event));
+                });
+                server.broadcast(local_asterisk_ami_event_utils_1.default.fromObject({
+                    Response: "Success"
+                }));
+            })
+                .catch((err) => {
+                done(err);
+            });
+        });
     });
-
-    describe('Keep-alive', function(){
-
-        beforeEach(done => {
-            client = new AmiClient({});
-            server = new AmiTestServer(serverOptions);
-            server.listen(socketOptions).then(done);
+    describe("Keep-alive", () => {
+        beforeEach((done) => {
+            client = new AmiClient_1.default({});
+            server = new local_asterisk_ami_test_server_1.default(serverOptions);
+            server.listen(socketOptions)
+                .then(() => done())
+                .catch((err) => {
+                done(err);
+            });
         });
-
-        it('keep-alive is disabled', done => {
-            client.connect(USERNAME, SECRET, {port: socketOptions.port}).then(() => {
-                let clientEventsStream = server.getAuthClients()[0]._eventStream,
-                    timeout = setTimeout(() => {
-                        clientEventsStream.removeAllListeners('amiAction');
-                        done();
-                    }, 2000);
-
-                clientEventsStream.on('amiAction', action => {
-                    if(action.Action === 'Ping'){
+        it("keep-alive is disabled", (done) => {
+            client.connect(USERNAME, SECRET, { port: socketOptions.port })
+                .then(() => {
+                const clientEventsStream = server.getAuthClients()[0]._eventStream;
+                const timeout = setTimeout(() => {
+                    clientEventsStream.removeAllListeners("amiAction");
+                    done();
+                }, 2000);
+                clientEventsStream.on("amiAction", (action) => {
+                    if (action.Action === "Ping") {
                         clearTimeout(timeout);
                     }
                 });
+            })
+                .catch((err) => {
+                done(err);
             });
-        });
-
-        it('keep-alive is enabled', done => {
-            client = new AmiClient({
+        }).timeout(3000);
+        it("keep-alive is enabled", (done) => {
+            client = new AmiClient_1.default({
                 keepAlive: true,
                 keepAliveDelay: 100
             });
-            client.connect(USERNAME, SECRET, {port: socketOptions.port}).then(() => {
-                let clientEventsStream = server.getAuthClients()[0]._eventStream;
-                clientEventsStream.on('amiAction', action => {
-                    if(action.Action === 'Ping'){
-                        assert.ok(action.ActionID.startsWith(client._specPrefix));
-                        clientEventsStream.removeAllListeners('amiAction');
+            client.connect(USERNAME, SECRET, { port: socketOptions.port })
+                .then(() => {
+                const clientEventsStream = server.getAuthClients()[0]._eventStream;
+                clientEventsStream.on("amiAction", (action) => {
+                    if (action.Action === "Ping") {
+                        assert.ok(action.ActionID.startsWith(client.specPrefix));
+                        clientEventsStream.removeAllListeners("amiAction");
                         done();
                     }
                 });
+            })
+                .catch((err) => {
+                done(err);
             });
         });
-
     });
-
 });
-
+//# sourceMappingURL=amiClientTest.js.map
