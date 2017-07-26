@@ -9,7 +9,7 @@ import AmiConnection from "local-asterisk-ami-connector/lib/AmiConnection";
 import amiUtils from "local-asterisk-ami-event-utils";
 import AmiTestServer from "local-asterisk-ami-test-server";
 import AmiClient from "../lib/AmiClient";
-import {IAstAction} from "../lib/Interfaces";
+import {IAmiAction} from "../lib/Interfaces";
 
 const debugLog = debug("AmiClientTest");
 
@@ -459,7 +459,7 @@ describe("Ami Client internal functionality", () => {
             const originalAction = client.action;
             const testAction = {Action: "Ping"};
 
-            client.action = (message: IAstAction, promisable?: boolean): AmiClient | Promise<{}> => {
+            client.action = (message: IAmiAction, promisable?: boolean): AmiClient | Promise<{}> => {
                 client.action = originalAction;
 
                 assert.deepEqual(testAction, message);
@@ -473,7 +473,7 @@ describe("Ami Client internal functionality", () => {
             const originalAction = client.action;
             const testAction = {Action: "Ping"};
 
-            client.action = (message: IAstAction, promisable?: boolean): AmiClient | Promise<{}> => {
+            client.action = (message: IAmiAction, promisable?: boolean): AmiClient | Promise<{}> => {
                 client.action = originalAction;
 
                 assert.deepEqual(testAction, message);

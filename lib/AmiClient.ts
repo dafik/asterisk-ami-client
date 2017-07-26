@@ -8,7 +8,7 @@ import debug from "debug";
 import {EventEmitter} from "events";
 import amiConnector from "local-asterisk-ami-connector";
 import AmiConnection from "local-asterisk-ami-connector/lib/AmiConnection";
-import {IAmiClientOptions, IAstAction} from "./Interfaces";
+import {IAmiAction, IAmiClientOptions, IAmiConnectionOptions, IAmiEvent, IAmiResponse, IDfiAMIResponse} from "./Interfaces";
 
 const debugLog = debug("AmiClient");
 const debugError = debug("AmiClient:error");
@@ -32,7 +32,7 @@ class AmiClient extends EventEmitter {
 
     private _credentials: { user: any; secret: any };
 
-    private _lastAction: IAstAction;
+    private _lastAction: IAmiAction;
 
     private _userDisconnect: boolean;
 
@@ -48,9 +48,6 @@ class AmiClient extends EventEmitter {
         return this._specPrefix;
     }
 
-    /**
-     * Constructor
-     */
     constructor(options?: IAmiClientOptions) {
         super();
         this._connection = null;
@@ -94,14 +91,7 @@ class AmiClient extends EventEmitter {
         });
     }
 
-    /**
-     *
-     * @param user
-     * @param secret
-     * @param options
-     * @returns {Promise}
-     */
-    public connect(user, secret, options) {
+    public connect(user: string, secret: string, options: IAmiConnectionOptions): Promise<AmiConnection> {
         this._credentials = {user, secret};
         this._connectionOptions = options || {};
 
@@ -190,7 +180,7 @@ class AmiClient extends EventEmitter {
         return this;
     }
 
-    public action(message: IAstAction, promisable?: boolean): this | Promise<{}> {
+    public action(message: IAmiAction, promisable?: boolean): this | Promise<IDfiAMIResponse> {
         if (!this._connection) {
             throw new Error(`Call 'connect' method before.`);
         }
@@ -209,15 +199,15 @@ class AmiClient extends EventEmitter {
         return this;
     }
 
-    public write(message: IAstAction, promisable?: boolean) {
+    public write(message: IAmiAction, promisable?: boolean): this | Promise<IDfiAMIResponse> {
         return this.action(message, promisable);
     }
 
-    public send(message: IAstAction, promisable?: boolean) {
+    public send(message: IAmiAction, promisable?: boolean): this | Promise<IDfiAMIResponse> {
         return this.action(message, promisable);
     }
 
-    public option(name: string, value?: any) {
+    public option(name: string, value?: any): any {
         if (!Object.hasOwnProperty.call(this._options, name)) {
             return value === undefined ? undefined : false;
         }
@@ -244,9 +234,8 @@ class AmiClient extends EventEmitter {
 
     /**
      * Keep-alive heart bit handler
-     * @private
      */
-    private _keepAliveBit() {
+    private _keepAliveBit(): this {
         this._kaTimer = setTimeout(() => {
             if (this._options.keepAlive && this._connection && this.isConnected) {
                 this._kaActionId = AmiClient._genActionId(this._specPrefix);
@@ -279,12 +268,7 @@ class AmiClient extends EventEmitter {
         return this;
     }
 
-    /**
-     *
-     * @param event
-     * @private
-     */
-    private _eventIsAllow(event) {
+    private _eventIsAllow(event: IAmiEvent): boolean {
         const eventName = event.Event ? event.Event.toLowerCase() : null;
 
         if (eventName && this._options.eventFilter) {
@@ -293,12 +277,7 @@ class AmiClient extends EventEmitter {
         return true;
     }
 
-    /**
-     *
-     * @param message
-     * @private
-     */
-    private _promisable(message: IAstAction): Promise<{}> {
+    private _promisable(message: IAmiAction): this | Promise<IDfiAMIResponse> {
         return new Promise((resolve, reject) => {
             const resolveTimer = setTimeout(() => {
                 reject(new Error("Timeout response came."));
@@ -329,19 +308,11 @@ class AmiClient extends EventEmitter {
             });
     }
 
-    /**
-     *
-     * @returns {null}
-     */
-    get lastEvent() {
+    get lastEvent(): IAmiEvent {
         return this._connection ? this._connection.lastEvent : null;
     }
 
-    /**
-     *
-     * @returns {null}
-     */
-    get lastResponse() {
+    get lastResponse(): IAmiResponse {
         const response = this._connection ? this._connection.lastResponse : null;
         if (response && response.ActionID && response.ActionID.startsWith(this._specPrefix)) {
             delete response.ActionID;
@@ -349,27 +320,15 @@ class AmiClient extends EventEmitter {
         return response;
     }
 
-    /**
-     *
-     * @returns {boolean}
-     */
-    get isConnected() {
-        return this._connection ? this._connection.isConnected : null;
+    get isConnected(): boolean {
+        return this._connection ? this._connection.isConnected : false;
     }
 
-    /**
-     *
-     * @returns {null}
-     */
-    get lastAction() {
+    get lastAction(): IAmiAction {
         return this._lastAction;
     }
 
-    /**
-     *
-     * @returns {T|*}
-     */
-    get connection() {
+    get connection(): AmiConnection {
         return this._connection;
     }
 }
