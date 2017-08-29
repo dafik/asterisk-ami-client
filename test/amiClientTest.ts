@@ -9,7 +9,7 @@ import AmiConnection from "local-asterisk-ami-connector/lib/AmiConnection";
 import amiUtils from "local-asterisk-ami-event-utils";
 import AmiTestServer from "local-asterisk-ami-test-server";
 import AmiClient from "../lib/AmiClient";
-import {IAmiAction} from "../lib/Interfaces";
+import {IAmiAction, IDfiAMIResponse} from "../lib/Interfaces";
 
 const debugLog = debug("AmiClientTest");
 
@@ -459,7 +459,7 @@ describe("Ami Client internal functionality", () => {
             const originalAction = client.action;
             const testAction = {Action: "Ping"};
 
-            client.action = (message: IAmiAction, promisable?: boolean): AmiClient | Promise<{}> => {
+            client.action = (message: IAmiAction): AmiClient | Promise<IDfiAMIResponse> => {
                 client.action = originalAction;
 
                 assert.deepEqual(testAction, message);
@@ -473,7 +473,7 @@ describe("Ami Client internal functionality", () => {
             const originalAction = client.action;
             const testAction = {Action: "Ping"};
 
-            client.action = (message: IAmiAction, promisable?: boolean): AmiClient | Promise<{}> => {
+            client.action = (message: IAmiAction): AmiClient | Promise<IDfiAMIResponse> => {
                 client.action = originalAction;
 
                 assert.deepEqual(testAction, message);
@@ -486,8 +486,15 @@ describe("Ami Client internal functionality", () => {
         it("Action is promisable", (done) => {
             client.connect(USERNAME, SECRET, {port: socketOptions.port})
                 .then(() => {
-                    assert.ok(client.action({Action: "Ping"}, true) instanceof Promise);
-                    done();
+                    const promise: Promise<IDfiAMIResponse> = (client.action({Action: "Ping"}, true) as Promise<IDfiAMIResponse>);
+                    promise
+                        .then(() => {
+                            done();
+                        })
+                        .catch((err) => {
+                            done(err);
+                        });
+                    assert.ok(promise instanceof Promise);
                 })
                 .catch((err) => {
                     done(err);

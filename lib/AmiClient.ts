@@ -8,10 +8,9 @@ import debug from "debug";
 import {EventEmitter} from "events";
 import amiConnector from "local-asterisk-ami-connector";
 import AmiConnection from "local-asterisk-ami-connector/lib/AmiConnection";
-import {IAmiAction, IAmiClientOptions, IAmiConnectionOptions, IAmiEvent, IAmiResponse, IDfiAMIResponse} from "./Interfaces";
+import {IAmiAction, IAmiClientOptions, IAmiConnectionOptions, IAmiEvent, IDfiAMIResponse} from "./Interfaces";
 
 const debugLog = debug("AmiClient");
-const debugError = debug("AmiClient:error");
 
 /**
  * AmiClient class
@@ -284,7 +283,11 @@ class AmiClient extends EventEmitter {
             }, 10000);
             resolveTimer.unref();
 
-            this._connection.write(message);
+            this._connection.write(message, (err?: Error) => {
+                if (err) {
+                    reject(err);
+                }
+            });
             this._prPendingActions[message.ActionID] = message;
             this._prEmitter
                 .on(`resp_${message.ActionID}`, (response) => {
@@ -295,24 +298,22 @@ class AmiClient extends EventEmitter {
                     clearTimeout(resolveTimer);
                     reject(new Error("Client disconnected."));
                 });
-        })
-            .catch((error) => error)
-            .then((response) => {
-                this._prEmitter.removeAllListeners(`disconnect_${message.ActionID}`);
-                this._prEmitter.removeAllListeners(`resp_${message.ActionID}`);
-                delete this._prPendingActions[message.ActionID];
-                if (response instanceof Error) {
-                    throw response;
-                }
-                return response;
-            });
+        }).catch((response) => {
+            this._prEmitter.removeAllListeners(`disconnect_${message.ActionID}`);
+            this._prEmitter.removeAllListeners(`resp_${message.ActionID}`);
+            delete this._prPendingActions[message.ActionID];
+            if (response instanceof Error) {
+                throw response;
+            }
+            return response;
+        });
     }
 
     get lastEvent(): IAmiEvent {
         return this._connection ? this._connection.lastEvent : null;
     }
 
-    get lastResponse(): IAmiResponse {
+    get lastResponse(): IDfiAMIResponse {
         const response = this._connection ? this._connection.lastResponse : null;
         if (response && response.ActionID && response.ActionID.startsWith(this._specPrefix)) {
             delete response.ActionID;

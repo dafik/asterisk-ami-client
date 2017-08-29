@@ -402,30 +402,35 @@ describe("Ami Client internal functionality", () => {
         it("Write is a alias of action", (done) => {
             const originalAction = client.action;
             const testAction = { Action: "Ping" };
-            client.action = (message, promisable) => {
+            client.action = (message) => {
                 client.action = originalAction;
                 assert.deepEqual(testAction, message);
                 done();
-                return;
             };
             client.write(testAction);
         });
         it("Send is a alias of action", (done) => {
             const originalAction = client.action;
             const testAction = { Action: "Ping" };
-            client.action = (message, promisable) => {
+            client.action = (message) => {
                 client.action = originalAction;
                 assert.deepEqual(testAction, message);
                 done();
-                return;
             };
             client.send(testAction);
         });
         it("Action is promisable", (done) => {
             client.connect(USERNAME, SECRET, { port: socketOptions.port })
                 .then(() => {
-                assert.ok(client.action({ Action: "Ping" }, true) instanceof Promise);
-                done();
+                const promise = client.action({ Action: "Ping" }, true);
+                promise
+                    .then(() => {
+                    done();
+                })
+                    .catch((err) => {
+                    done(err);
+                });
+                assert.ok(promise instanceof Promise);
             })
                 .catch((err) => {
                 done(err);
