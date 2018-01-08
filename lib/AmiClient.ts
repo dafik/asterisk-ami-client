@@ -5,9 +5,9 @@
  */
 
 import debug from "debug";
+import amiConnector from "dfi-asterisk-ami-connector";
+import AmiConnection from "dfi-asterisk-ami-connector/lib/AmiConnection";
 import {EventEmitter} from "events";
-import amiConnector from "local-asterisk-ami-connector";
-import AmiConnection from "local-asterisk-ami-connector/lib/AmiConnection";
 import {IAmiAction, IAmiClientOptions, IAmiConnectionOptions, IAmiEvent, IDfiAMIResponse} from "./Interfaces";
 
 const debugLog = debug("AmiClient");

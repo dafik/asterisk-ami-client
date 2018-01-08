@@ -1,4 +1,4 @@
-import AmiConnection from "local-asterisk-ami-connector/lib/AmiConnection";
+import AmiConnection from "dfi-asterisk-ami-connector/lib/AmiConnection";
 
 export interface IAmiMessage {
     ActionID?: string;

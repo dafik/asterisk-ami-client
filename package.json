@@ -1,5 +1,5 @@
 {
-  "name": "local-asterisk-ami-client",
+  "name": "dfi-asterisk-ami-client",
   "version": "1.0.7",
   "description": "Asterisk AMI Client for NodeJS (ES2015)",
   "main": "./lib/AmiClient.js",
@@ -29,20 +29,21 @@
     "email": "belirafon@gmail.com"
   },
   "dependencies": {
-    "local-asterisk-ami-connector": "^1.0",
     "co": "^4.6.0",
-    "debug": "^2.2.0"
+    "debug": "^2.6.9",
+    "dfi-asterisk-ami-connector": "^1.0"
   },
   "devDependencies": {
-    "local-asterisk-ami-event-utils": "^2.0.2",
-    "local-asterisk-ami-test-server": "^0.1.4",
-    "coveralls": "^2.11.9",
+    "@types/mocha": "^2.2.46",
+    "@types/node": "^8.5.7",
+    "asterisk-ami-test-server": "^0.1.4",
+    "coveralls": "^2.13.3",
+    "dfi-asterisk-ami-event-utils": "^2.0.2",
+    "dfi-asterisk-ami-test-server": "^0.1.6",
     "istanbul": "^0.4.3",
     "mocha": "^2.4.5",
-    "@types/mocha": "^2.2.41",
-    "@types/node": "^8.0.16",
     "ts-node": "^3.3.0",
-    "typescript": "^2.4.2"
+    "typescript": "^2.6.2"
   },
   "license": "MIT"
 }

@@ -5,9 +5,9 @@
  */
 import * as assert from "assert";
 import debug from "debug";
-import AmiConnection from "local-asterisk-ami-connector/lib/AmiConnection";
-import amiUtils from "local-asterisk-ami-event-utils";
-import AmiTestServer from "local-asterisk-ami-test-server";
+import AmiConnection from "dfi-asterisk-ami-connector/lib/AmiConnection";
+import amiUtils from "dfi-asterisk-ami-event-utils";
+import AmiTestServer from "dfi-asterisk-ami-test-server";
 import AmiClient from "../lib/AmiClient";
 import {IAmiAction, IDfiAMIResponse} from "../lib/Interfaces";
 
